@@ -1,12 +1,33 @@
 import { z } from "zod";
 
+const emptyStringToUndefined = (value: unknown) =>
+  value === "" ? undefined : value;
+
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  NOTIFICATION_MODE: z.enum(["simulated", "sms", "email"]).default("simulated"),
-  APP_BASE_URL: z.string().url().default("http://localhost:3000"),
-  REQUESTER_HASH_SECRET: z.string().default("parkping-dev-secret"),
+  NEXT_PUBLIC_SUPABASE_URL: z.preprocess(
+    emptyStringToUndefined,
+    z.string().url().optional(),
+  ),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.preprocess(
+    emptyStringToUndefined,
+    z.string().optional(),
+  ),
+  SUPABASE_SERVICE_ROLE_KEY: z.preprocess(
+    emptyStringToUndefined,
+    z.string().optional(),
+  ),
+  NOTIFICATION_MODE: z.preprocess(
+    emptyStringToUndefined,
+    z.enum(["simulated", "sms", "email"]).default("simulated"),
+  ),
+  APP_BASE_URL: z.preprocess(
+    emptyStringToUndefined,
+    z.string().url().default("http://localhost:3000"),
+  ),
+  REQUESTER_HASH_SECRET: z.preprocess(
+    emptyStringToUndefined,
+    z.string().min(1).default("parkping-dev-secret"),
+  ),
 });
 
 export const env = envSchema.parse({

@@ -89,3 +89,30 @@ create index if not exists incidents_requester_created_idx
 
 create index if not exists notifications_incident_idx
   on notifications (incident_id);
+
+create or replace function set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists owners_set_updated_at on owners;
+create trigger owners_set_updated_at
+  before update on owners
+  for each row
+  execute function set_updated_at();
+
+drop trigger if exists vehicles_set_updated_at on vehicles;
+create trigger vehicles_set_updated_at
+  before update on vehicles
+  for each row
+  execute function set_updated_at();
+
+alter table owners enable row level security;
+alter table vehicles enable row level security;
+alter table incidents enable row level security;
+alter table notifications enable row level security;
+alter table imports enable row level security;
+alter table import_errors enable row level security;
