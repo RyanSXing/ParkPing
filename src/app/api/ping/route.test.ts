@@ -16,6 +16,19 @@ vi.mock("@/lib/notifications/simulated", () => ({
 
 const createSupabaseMock = ({
   notificationShouldFail = false,
+  owner = {
+    id: "owner-1",
+    name: "Private Owner",
+    email: "private@example.com",
+    phone: "+15551234567",
+    unit_number: "1204",
+  } as {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    unit_number: string;
+  } | null,
 } = {}) => {
   const vehicle = {
     id: "vehicle-1",
@@ -23,13 +36,7 @@ const createSupabaseMock = ({
     colour: "Blue",
     make: "Honda",
     model: "Civic",
-    owners: {
-      id: "owner-1",
-      name: "Private Owner",
-      email: "private@example.com",
-      phone: "+15551234567",
-      unit_number: "1204",
-    },
+    owners: owner,
   };
 
   const incident = {
@@ -152,6 +159,32 @@ describe("POST /api/ping", () => {
     expect(body).not.toHaveProperty("owner");
   });
 
+  it("rejects the legacy plate field without plateNumber", async () => {
+    const { client, incidentInsertQuery } = createSupabaseMock();
+    vi.mocked(createSupabaseAdminClient).mockReturnValue(client as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/ping", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          plate: "ABC123",
+          location: "P2 north",
+          message: "Blocking the ramp",
+        }),
+      }),
+    );
+
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
+      success: false,
+      message: "Please check the ping details and try again.",
+    });
+    expect(incidentInsertQuery.insert).not.toHaveBeenCalled();
+  });
+
   it("marks the incident failed when notification delivery fails", async () => {
     const { client, incidentUpdateQuery } = createSupabaseMock({
       notificationShouldFail: true,
@@ -182,6 +215,37 @@ describe("POST /api/ping", () => {
       message: "Unable to create ping right now. Please try again later.",
     });
     expect(incidentUpdateQuery.update).toHaveBeenCalledWith({ status: "failed" });
+  });
+
+  it("marks the incident failed when no owner exists after insert", async () => {
+    const { client, incidentUpdateQuery } = createSupabaseMock({ owner: null });
+    vi.mocked(createSupabaseAdminClient).mockReturnValue(client as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/ping", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": "203.0.113.10",
+          "user-agent": "vitest",
+        },
+        body: JSON.stringify({
+          plateNumber: "abc 123",
+          location: "P2 north",
+          message: "Blocking the ramp",
+        }),
+      }),
+    );
+
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      success: false,
+      message: "Unable to create ping right now. Please try again later.",
+    });
+    expect(incidentUpdateQuery.update).toHaveBeenCalledWith({ status: "failed" });
+    expect(sendSimulatedParkingAlert).not.toHaveBeenCalled();
   });
 
   it("stores requester hash without raw requester or owner private fields", async () => {

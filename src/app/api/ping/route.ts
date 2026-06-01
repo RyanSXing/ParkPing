@@ -22,23 +22,14 @@ const VALIDATION_MESSAGE = "Please check the ping details and try again.";
 const SERVER_ERROR_MESSAGE = "Unable to create ping right now. Please try again later.";
 
 const pingRequestSchema = z.object({
-  plateNumber: plateSchema.optional(),
-  plate: plateSchema.optional(),
+  plateNumber: plateSchema,
   location: z
     .string()
     .max(120)
     .optional()
     .transform((value) => value?.trim() ?? ""),
   message: messageSchema,
-})
-  .refine((value) => Boolean(value.plateNumber || value.plate), {
-    path: ["plateNumber"],
-  })
-  .transform(({ plateNumber, plate, location, message }) => ({
-    plateNumber: plateNumber ?? plate ?? "",
-    location,
-    message,
-  }));
+});
 
 type OwnerRecord = {
   id?: string;
@@ -163,6 +154,7 @@ export async function POST(request: Request) {
     const owner = firstOwner(vehicleRecord.owners);
 
     if (!owner) {
+      await markIncidentFailed(supabase, incident.id);
       return jsonResponse({ success: false, message: SERVER_ERROR_MESSAGE }, 500);
     }
 
