@@ -14,4 +14,20 @@ describe("contact validation helpers", () => {
   it("masks email addresses while preserving the domain", () => {
     expect(maskEmail("resident@example.com")).toBe("r***@example.com");
   });
+
+  it("returns an empty string for missing or malformed email addresses", () => {
+    expect(maskEmail(null)).toBe("");
+    expect(maskEmail(undefined)).toBe("");
+    expect(maskEmail("resident")).toBe("");
+    expect(maskEmail("resident@")).toBe("");
+    expect(maskEmail("@example.com")).toBe("");
+    expect(maskEmail("resident@example.com@backup")).toBe("");
+  });
+
+  it("accepts missing phone inputs without leaking raw values", () => {
+    expect(normalizeNorthAmericanPhone(null)).toBe("");
+    expect(normalizeNorthAmericanPhone(undefined)).toBe("");
+    expect(maskPhone(null)).toBe("");
+    expect(maskPhone(undefined)).toBe("");
+  });
 });

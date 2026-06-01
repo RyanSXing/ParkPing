@@ -19,9 +19,34 @@ describe("import column helpers", () => {
     });
   });
 
+  it("normalizes common human-readable CSV headers before alias matching", () => {
+    expect(
+      mapImportRow({
+        Color: "Green",
+        "License Plate": "park 202",
+        "Owner Name": "Jordan Lee",
+        "Unit #": "1402",
+      }),
+    ).toEqual({
+      colour: "Green",
+      name: "Jordan Lee",
+      plate_number: "PARK202",
+      unit_number: "1402",
+    });
+  });
+
   it("finds duplicate plates after normalization", () => {
     expect(
       findDuplicatePlates([{ plate_number: "ABC 123" }, { plate: "ABC-123" }]),
+    ).toEqual(["ABC123"]);
+  });
+
+  it("finds duplicate plates from normalized header aliases", () => {
+    expect(
+      findDuplicatePlates([
+        { "License Plate": "ABC 123" },
+        { "license plate": "ABC-123" },
+      ]),
     ).toEqual(["ABC123"]);
   });
 });

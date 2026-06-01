@@ -1,4 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
+
+const UNKNOWN_REQUESTER_SIGNAL = "unknown";
 
 export type RequesterSignals = {
   ipAddress: string;
@@ -10,12 +12,8 @@ export function createRequesterHash(
   userAgent: string,
   secret: string,
 ): string {
-  return createHash("sha256")
-    .update(secret)
-    .update(":")
-    .update(ipAddress)
-    .update(":")
-    .update(userAgent)
+  return createHmac("sha256", secret)
+    .update(JSON.stringify({ ipAddress, userAgent }))
     .digest("hex");
 }
 
@@ -25,7 +23,7 @@ export function getRequesterSignals(headers: Headers): RequesterSignals {
   const realIp = headers.get("x-real-ip")?.trim() ?? "";
 
   return {
-    ipAddress: forwardedIp || realIp,
-    userAgent: headers.get("user-agent")?.trim() ?? "",
+    ipAddress: forwardedIp || realIp || UNKNOWN_REQUESTER_SIGNAL,
+    userAgent: headers.get("user-agent")?.trim() || UNKNOWN_REQUESTER_SIGNAL,
   };
 }

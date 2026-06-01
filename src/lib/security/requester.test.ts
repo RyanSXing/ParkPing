@@ -12,6 +12,12 @@ describe("requester security helpers", () => {
     expect(firstHash).not.toContain("Vitest Browser");
   });
 
+  it("does not collide when requester fields contain separators", () => {
+    expect(createRequesterHash("a:b", "c", "secret")).not.toBe(
+      createRequesterHash("a", "b:c", "secret"),
+    );
+  });
+
   it("reads x-forwarded-for first IP before other requester headers", () => {
     const headers = new Headers({
       "user-agent": "Vitest Browser",
@@ -25,12 +31,19 @@ describe("requester security helpers", () => {
     });
   });
 
-  it("falls back to x-real-ip and empty user-agent", () => {
+  it("falls back to x-real-ip and unknown user-agent", () => {
     expect(
       getRequesterSignals(new Headers({ "x-real-ip": "203.0.113.5" })),
     ).toEqual({
       ipAddress: "203.0.113.5",
-      userAgent: "",
+      userAgent: "unknown",
+    });
+  });
+
+  it("uses unknown sentinels when requester headers are missing", () => {
+    expect(getRequesterSignals(new Headers())).toEqual({
+      ipAddress: "unknown",
+      userAgent: "unknown",
     });
   });
 });

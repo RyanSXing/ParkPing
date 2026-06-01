@@ -13,11 +13,23 @@ const COLUMN_ALIASES: Record<string, string> = {
   owner_name: "name",
   plate: "plate_number",
   unit: "unit_number",
+  unit_number: "unit_number",
   vehicle_year: "year",
 };
 
+function normalizeHeader(column: string): string {
+  return column
+    .trim()
+    .toLowerCase()
+    .replace(/#+/g, "number")
+    .replace(/\W+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function targetColumn(column: string): string {
-  return COLUMN_ALIASES[column] ?? column;
+  const normalizedColumn = normalizeHeader(column);
+
+  return COLUMN_ALIASES[normalizedColumn] ?? normalizedColumn;
 }
 
 function stringifyValue(value: ImportValue): string {
