@@ -28,9 +28,17 @@ ADMIN_EMAILS=admin1@example.com,admin2@example.com
 ParkPing falls back to `https://$VERCEL_URL`, which is useful for preview
 deployments. Set it explicitly for production so links use the public domain.
 
-Keep `NOTIFICATION_MODE=simulated` until a real SMS or email provider is built
-and tested. The Twilio and Resend placeholders in `.env.example` are inactive in
-simulated mode.
+Keep `NOTIFICATION_MODE=simulated` until Resend credentials are configured and a
+controlled email smoke test passes. Email mode requires:
+
+```text
+NOTIFICATION_MODE=email
+RESEND_API_KEY=<resend api key>
+FROM_EMAIL=ParkPing <alerts@yourdomain.com>
+```
+
+`FROM_EMAIL` must be a sender identity accepted by Resend. Simulated mode remains
+available for demos and local work.
 
 ## 3. CI Gate
 

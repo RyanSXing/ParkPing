@@ -15,6 +15,8 @@ The resident-first MVP supports this flow:
   an incident, and records a notification.
 - `NOTIFICATION_MODE=simulated` is the default, so local development stores a
   simulated notification instead of sending SMS or email.
+- `NOTIFICATION_MODE=email` sends owner alerts through Resend when
+  `RESEND_API_KEY` and `FROM_EMAIL` are configured.
 - The resident never sees the owner name, phone number, email address, unit
   number, full vehicle row, or any other contact details.
 - Owners resolve alerts through secure token links at `/resolve/[token]`.
@@ -29,10 +31,9 @@ ParkPing runs in free simulated mode by default:
 NOTIFICATION_MODE=simulated
 ```
 
-No Twilio, Resend, Stripe, or other paid API account is required for the MVP.
-Twilio and Resend placeholders are kept in `.env.example` for future SMS/email
-delivery modes, but they are optional and unused while notification mode is
-`simulated`.
+No Twilio, Resend, Stripe, or other paid API account is required for simulated
+mode. To send real email pings, configure Resend and switch
+`NOTIFICATION_MODE=email`.
 
 ## Environment Setup
 
@@ -51,10 +52,12 @@ Then set:
 - `ADMIN_EMAILS`: comma-separated Supabase Auth emails allowed to access `/admin`.
 - `REQUESTER_HASH_SECRET`: a private secret used to hash requester signals for
   rate limiting without storing raw requester identity.
+- `RESEND_API_KEY`: required only when `NOTIFICATION_MODE=email`.
+- `FROM_EMAIL`: verified sender identity used for live email alerts.
 
 `APP_BASE_URL` defaults to `http://localhost:3000` and is used when creating
-owner resolve links. Keep `NOTIFICATION_MODE=simulated` unless you are adding a
-real delivery provider.
+owner resolve links. Keep `NOTIFICATION_MODE=simulated` unless Resend is
+configured for live email delivery.
 
 ## Database Setup
 
@@ -143,6 +146,7 @@ links.
    records.
 
 In simulated notification mode, ParkPing writes notification records with masked
-recipients and secure resolve links instead of sending live SMS or email. This
-keeps the MVP free to run while still exercising the full resident-to-owner alert
-slice.
+recipients and secure resolve links instead of sending live SMS or email. When
+`NOTIFICATION_MODE=email` is enabled with Resend credentials, ParkPing sends a
+live owner email and still stores the masked recipient, provider id, message
+preview, and resolve link.
