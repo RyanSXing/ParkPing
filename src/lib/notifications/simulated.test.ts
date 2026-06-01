@@ -130,6 +130,50 @@ describe("sendSimulatedParkingAlert", () => {
     );
   });
 
+  it("throws before inserting when the owner has no phone or email recipient", async () => {
+    const client = createInsertClient();
+
+    await expect(
+      sendSimulatedParkingAlert(client, {
+        incidentId: "incident-no-recipient",
+        resolveToken: "resolve-token-789",
+        owner: { phone: null, email: null },
+        vehicle: {
+          plate_number: "NORECIP",
+          colour: null,
+          make: null,
+          model: null,
+        },
+        location: null,
+        appBaseUrl: "https://parkping.example",
+      }),
+    ).rejects.toThrow("No usable notification recipient.");
+
+    expect(client.calls).toHaveLength(0);
+  });
+
+  it("throws before inserting when contact values cannot be masked", async () => {
+    const client = createInsertClient();
+
+    await expect(
+      sendSimulatedParkingAlert(client, {
+        incidentId: "incident-invalid-recipient",
+        resolveToken: "resolve-token-789",
+        owner: { phone: "555-0123 ext 9", email: "resident" },
+        vehicle: {
+          plate_number: "BADRECIP",
+          colour: null,
+          make: null,
+          model: null,
+        },
+        location: null,
+        appBaseUrl: "https://parkping.example",
+      }),
+    ).rejects.toThrow("No usable notification recipient.");
+
+    expect(client.calls).toHaveLength(0);
+  });
+
   it("throws when the insert fails or returns no data", async () => {
     const errorClient = {
       from() {
@@ -154,7 +198,7 @@ describe("sendSimulatedParkingAlert", () => {
       sendSimulatedParkingAlert(errorClient, {
         incidentId: "incident-3",
         resolveToken: "resolve-token-789",
-        owner: { phone: null, email: null },
+        owner: { phone: "+14165550123", email: null },
         vehicle: {
           plate_number: "NOPE1",
           colour: null,
@@ -191,7 +235,7 @@ describe("sendSimulatedParkingAlert", () => {
       sendSimulatedParkingAlert(noDataClient, {
         incidentId: "incident-no-data",
         resolveToken: "resolve-token-789",
-        owner: { phone: null, email: null },
+        owner: { phone: "+14165550123", email: null },
         vehicle: {
           plate_number: "NODATA",
           colour: null,

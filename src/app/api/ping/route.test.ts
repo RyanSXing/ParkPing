@@ -25,8 +25,8 @@ const createSupabaseMock = ({
   } as {
     id: string;
     name: string;
-    email: string;
-    phone: string;
+    email: string | null;
+    phone: string | null;
     unit_number: string;
   } | null,
 } = {}) => {
@@ -215,6 +215,60 @@ describe("POST /api/ping", () => {
       message: "Unable to create ping right now. Please try again later.",
     });
     expect(incidentUpdateQuery.update).toHaveBeenCalledWith({ status: "failed" });
+  });
+
+  it("marks the incident failed when the owner has no usable contact", async () => {
+    const { client, incidentUpdateQuery } = createSupabaseMock({
+      notificationShouldFail: true,
+      owner: {
+        id: "owner-no-contact",
+        name: "Private Owner",
+        email: null,
+        phone: null,
+        unit_number: "1204",
+      },
+    });
+    vi.mocked(sendSimulatedParkingAlert).mockRejectedValue(
+      new Error("No usable notification recipient."),
+    );
+    vi.mocked(createSupabaseAdminClient).mockReturnValue(client as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/ping", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": "203.0.113.10",
+          "user-agent": "vitest",
+        },
+        body: JSON.stringify({
+          plateNumber: "abc 123",
+          location: "P2 north",
+          message: "Blocking the ramp",
+        }),
+      }),
+    );
+
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      success: false,
+      message: "Unable to create ping right now. Please try again later.",
+    });
+    expect(sendSimulatedParkingAlert).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        owner: {
+          phone: null,
+          email: null,
+        },
+      }),
+    );
+    expect(incidentUpdateQuery.update).toHaveBeenCalledWith({ status: "failed" });
+    expect(JSON.stringify(body)).not.toContain("Private Owner");
+    expect(JSON.stringify(body)).not.toContain("1204");
+    expect(JSON.stringify(body)).not.toContain("No usable notification recipient");
   });
 
   it("marks the incident failed when no owner exists after insert", async () => {

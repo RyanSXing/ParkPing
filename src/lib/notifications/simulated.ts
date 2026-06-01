@@ -85,6 +85,12 @@ export async function sendSimulatedParkingAlert<TNotification extends Notificati
   client: SupabaseInsertClient<TNotification>,
   input: SendSimulatedParkingAlertInput,
 ): Promise<TNotification> {
+  const recipientMasked = getMaskedRecipient(input.owner);
+
+  if (!recipientMasked) {
+    throw new Error("No usable notification recipient.");
+  }
+
   const resolveLink = createResolveLink(input.appBaseUrl, input.resolveToken);
   const simulatedMessage = buildSimulatedMessage({
     vehicle: input.vehicle,
@@ -95,7 +101,7 @@ export async function sendSimulatedParkingAlert<TNotification extends Notificati
   const payload: Partial<Notification> = {
     incident_id: input.incidentId,
     method: "simulated",
-    recipient_masked: getMaskedRecipient(input.owner),
+    recipient_masked: recipientMasked,
     delivery_status: "simulated_sent",
     simulated_message: simulatedMessage,
     resolve_link: resolveLink,
