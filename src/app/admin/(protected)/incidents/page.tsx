@@ -16,6 +16,8 @@ type IncidentsPageProps = {
   searchParams?: Promise<{
     status?: string;
     plate?: string;
+    date?: string;
+    location?: string;
   }>;
 };
 
@@ -45,18 +47,20 @@ export default async function AdminIncidentsPage({ searchParams }: IncidentsPage
   const params = await searchParams;
   const status = params?.status ?? "";
   const plate = params?.plate?.trim() ?? "";
-  const incidents = await getAdminIncidents({ status, plate });
+  const date = params?.date?.trim() ?? "";
+  const location = params?.location?.trim() ?? "";
+  const incidents = await getAdminIncidents({ status, plate, date, location });
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-950">Incidents</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Filter resident pings by status or plate.
+          Filter resident pings by status, date, plate, or location.
         </p>
       </div>
 
-      <form className="grid gap-2 rounded-lg border border-[#E4ECFC] bg-white p-3 sm:grid-cols-[1fr_180px_auto]">
+      <form className="grid gap-2 rounded-lg border border-[#E4ECFC] bg-white p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_160px_180px_auto]">
         <label htmlFor="incident-plate" className="sr-only">
           Filter incidents by plate
         </label>
@@ -66,6 +70,27 @@ export default async function AdminIncidentsPage({ searchParams }: IncidentsPage
           name="plate"
           defaultValue={plate}
           placeholder="Plate"
+          className="min-h-10"
+        />
+        <label htmlFor="incident-location" className="sr-only">
+          Filter incidents by location
+        </label>
+        <Input
+          id="incident-location"
+          type="search"
+          name="location"
+          defaultValue={location}
+          placeholder="Location"
+          className="min-h-10"
+        />
+        <label htmlFor="incident-date" className="sr-only">
+          Filter incidents by date
+        </label>
+        <Input
+          id="incident-date"
+          type="date"
+          name="date"
+          defaultValue={date}
           className="min-h-10"
         />
         <label htmlFor="incident-status" className="sr-only">
@@ -94,9 +119,11 @@ export default async function AdminIncidentsPage({ searchParams }: IncidentsPage
             <TableHead>
               <TableRow>
                 <TableHeaderCell>Plate</TableHeaderCell>
+                <TableHeaderCell>Vehicle</TableHeaderCell>
                 <TableHeaderCell>Location</TableHeaderCell>
                 <TableHeaderCell>Message</TableHeaderCell>
                 <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Notification</TableHeaderCell>
                 <TableHeaderCell>Created</TableHeaderCell>
                 <TableHeaderCell>Resolved</TableHeaderCell>
               </TableRow>
@@ -107,12 +134,20 @@ export default async function AdminIncidentsPage({ searchParams }: IncidentsPage
                   <TableCell className="font-semibold text-slate-950">
                     {incident.plateNumber}
                   </TableCell>
+                  <TableCell>{incident.vehicle}</TableCell>
                   <TableCell>{incident.location || "-"}</TableCell>
                   <TableCell className="max-w-xs whitespace-normal">
                     {incident.message || "-"}
                   </TableCell>
                   <TableCell>
                     <Badge tone={incident.status} />
+                  </TableCell>
+                  <TableCell>
+                    {incident.notificationStatus ? (
+                      <Badge tone={incident.notificationStatus} />
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell>{formatDate(incident.createdAt)}</TableCell>
                   <TableCell>{formatDate(incident.resolvedAt)}</TableCell>

@@ -34,6 +34,18 @@ type VehicleRecord = {
   owners: OwnerRecord | OwnerRecord[] | null;
 };
 
+type IncidentVehicleRecord = {
+  colour: string | null;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+};
+
+type IncidentNotificationRecord = {
+  delivery_status: string;
+  created_at: string;
+};
+
 type IncidentRecord = {
   id: string;
   plate_number_snapshot: string;
@@ -42,6 +54,8 @@ type IncidentRecord = {
   status: IncidentStatus;
   created_at: string;
   resolved_at: string | null;
+  vehicles?: IncidentVehicleRecord | IncidentVehicleRecord[] | null;
+  notifications?: IncidentNotificationRecord[] | null;
 };
 
 type NotificationRecord = {
@@ -77,9 +91,11 @@ export type AdminVehicle = {
 export type AdminIncident = {
   id: string;
   plateNumber: string;
+  vehicle: string;
   location: string;
   message: string;
   status: IncidentStatus;
+  notificationStatus: string;
   createdAt: string;
   resolvedAt: string | null;
 };
@@ -112,10 +128,50 @@ function escapeSearchTerm(value: string) {
   return value.trim().replace(/[%_,()]/g, "");
 }
 
-function vehicleLabel(vehicle: VehicleRecord) {
+function vehicleLabel(vehicle: {
+  year: number | null;
+  colour: string | null;
+  make: string | null;
+  model: string | null;
+}) {
   return [vehicle.year, vehicle.colour, vehicle.make, vehicle.model]
     .filter(Boolean)
     .join(" ");
+}
+
+function textIncludes(value: string | null | undefined, searchTerm: string) {
+  return (value ?? "").toLowerCase().includes(searchTerm);
+}
+
+function vehicleMatchesSearch(vehicle: VehicleRecord, searchTerm: string) {
+  const owner = firstOwner(vehicle.owners);
+
+  return (
+    textIncludes(vehicle.plate_number, searchTerm) ||
+    textIncludes(vehicle.make, searchTerm) ||
+    textIncludes(vehicle.model, searchTerm) ||
+    textIncludes(vehicle.colour, searchTerm) ||
+    textIncludes(owner?.name, searchTerm) ||
+    textIncludes(owner?.unit_number, searchTerm)
+  );
+}
+
+function firstIncidentVehicle(
+  vehicle: IncidentRecord["vehicles"],
+): IncidentVehicleRecord | null {
+  if (Array.isArray(vehicle)) {
+    return vehicle[0] ?? null;
+  }
+
+  return vehicle ?? null;
+}
+
+function latestNotificationStatus(notifications: IncidentRecord["notifications"]) {
+  const latest = [...(notifications ?? [])].sort((left, right) =>
+    right.created_at.localeCompare(left.created_at),
+  )[0];
+
+  return latest?.delivery_status ?? "";
 }
 
 function mapVehicle(vehicle: VehicleRecord): AdminVehicle {
@@ -134,12 +190,16 @@ function mapVehicle(vehicle: VehicleRecord): AdminVehicle {
 }
 
 function mapIncident(incident: IncidentRecord): AdminIncident {
+  const vehicle = firstIncidentVehicle(incident.vehicles);
+
   return {
     id: incident.id,
     plateNumber: incident.plate_number_snapshot,
+    vehicle: vehicle ? vehicleLabel(vehicle) || "Unknown vehicle" : "Unknown vehicle",
     location: incident.location ?? "",
     message: incident.message ?? "",
     status: incident.status,
+    notificationStatus: latestNotificationStatus(incident.notifications),
     createdAt: incident.created_at,
     resolvedAt: incident.resolved_at,
   };
@@ -210,7 +270,9 @@ export async function getRecentIncidents(limit = 8): Promise<AdminIncident[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("incidents")
-    .select("id, plate_number_snapshot, location, message, status, created_at, resolved_at")
+    .select(
+      "id, plate_number_snapshot, location, message, status, created_at, resolved_at, vehicles(year, colour, make, model), notifications(delivery_status, created_at)",
+    )
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -223,43 +285,44 @@ export async function getRecentIncidents(limit = 8): Promise<AdminIncident[]> {
 
 export async function getAdminVehicles(q?: string): Promise<AdminVehicle[]> {
   const supabase = createSupabaseAdminClient();
-  const searchTerm = escapeSearchTerm(q ?? "");
-  let query = supabase
+  const searchTerm = escapeSearchTerm(q ?? "").toLowerCase();
+  const { data, error } = await supabase
     .from("vehicles")
     .select(
       "id, plate_number, colour, make, model, year, active, owners(name, phone, email, unit_number)",
     )
     .order("plate_number", { ascending: true })
-    .limit(100);
-
-  if (searchTerm) {
-    const pattern = `%${searchTerm}%`;
-    query = query.or(
-      `plate_number.ilike.${pattern},make.ilike.${pattern},model.ilike.${pattern},colour.ilike.${pattern}`,
-    );
-  }
-
-  const { data, error } = await query;
+    .limit(250);
 
   if (error) {
     throw new Error("Unable to load vehicles.");
   }
 
-  return ((data ?? []) as VehicleRecord[]).map(mapVehicle);
+  return ((data ?? []) as VehicleRecord[])
+    .filter((vehicle) => !searchTerm || vehicleMatchesSearch(vehicle, searchTerm))
+    .slice(0, 100)
+    .map(mapVehicle);
 }
 
 export async function getAdminIncidents({
   status,
   plate,
+  date,
+  location,
 }: {
   status?: string;
   plate?: string;
+  date?: string;
+  location?: string;
 }): Promise<AdminIncident[]> {
   const supabase = createSupabaseAdminClient();
   const plateTerm = escapeSearchTerm(plate ?? "");
+  const locationTerm = escapeSearchTerm(location ?? "");
   let query = supabase
     .from("incidents")
-    .select("id, plate_number_snapshot, location, message, status, created_at, resolved_at")
+    .select(
+      "id, plate_number_snapshot, location, message, status, created_at, resolved_at, vehicles(year, colour, make, model), notifications(delivery_status, created_at)",
+    )
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -269,6 +332,22 @@ export async function getAdminIncidents({
 
   if (plateTerm) {
     query = query.ilike("plate_number_snapshot", `%${plateTerm}%`);
+  }
+
+  if (locationTerm) {
+    query = query.ilike("location", `%${locationTerm}%`);
+  }
+
+  if (date) {
+    const parsedDate = new Date(`${date}T00:00:00.000`);
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      const nextDate = new Date(parsedDate);
+      nextDate.setDate(parsedDate.getDate() + 1);
+      query = query
+        .gte("created_at", parsedDate.toISOString())
+        .lt("created_at", nextDate.toISOString());
+    }
   }
 
   const { data, error } = await query;

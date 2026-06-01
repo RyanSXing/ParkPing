@@ -9,6 +9,8 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// Best-effort MVP throttling. This is process-local and should be replaced with
+// durable shared storage before running multiple app instances.
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();

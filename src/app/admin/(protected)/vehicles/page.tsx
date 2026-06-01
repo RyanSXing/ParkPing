@@ -30,19 +30,19 @@ export default async function AdminVehiclesPage({ searchParams }: VehiclesPagePr
         <div>
           <h1 className="text-2xl font-bold text-slate-950">Vehicles</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Search by plate, make, model, or colour.
+            Search by plate, owner, unit, make, model, or colour.
           </p>
         </div>
         <form className="flex w-full gap-2 lg:max-w-md">
           <label htmlFor="vehicle-search" className="sr-only">
-            Search vehicles by plate, make, model, or colour
+            Search vehicles by plate, owner, unit, make, model, or colour
           </label>
           <Input
             id="vehicle-search"
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search vehicles"
+            placeholder="Plate, owner, unit, make..."
             className="min-h-10"
           />
           <Button type="submit" className="min-h-10 px-4">
@@ -89,7 +89,7 @@ export default async function AdminVehiclesPage({ searchParams }: VehiclesPagePr
       ) : (
         <EmptyState
           title="No vehicles found"
-          message="Try a different plate, make, model, or colour."
+          message="Try a different plate, owner, unit, make, model, or colour."
         />
       )}
     </div>
