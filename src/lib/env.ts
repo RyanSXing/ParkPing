@@ -14,6 +14,10 @@ const commaSeparatedEmails = (value: unknown) => {
     .filter(Boolean);
 };
 
+const appBaseUrl =
+  process.env.APP_BASE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.preprocess(
     emptyStringToUndefined,
@@ -50,7 +54,7 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   NOTIFICATION_MODE: process.env.NOTIFICATION_MODE,
-  APP_BASE_URL: process.env.APP_BASE_URL,
+  APP_BASE_URL: appBaseUrl,
   REQUESTER_HASH_SECRET: process.env.REQUESTER_HASH_SECRET,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS,
 });

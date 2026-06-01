@@ -119,6 +119,9 @@ Recommended smoke checks with the dev server running:
   Supabase env is not configured locally, a generic no-env/server error.
 - `/admin/login` loads.
 
+For production setup and promotion, see
+[`docs/production-launch.md`](docs/production-launch.md).
+
 ## Privacy Model
 
 Public pages and APIs are designed to avoid leaking owner data. They never return
