@@ -4,6 +4,7 @@ type ImportValue = string | number | boolean | null | undefined;
 type ImportRow = Record<string, ImportValue>;
 
 const COLUMN_ALIASES: Record<string, string> = {
+  car_color: "colour",
   car_colour: "colour",
   car_make: "make",
   car_model: "model",
@@ -37,7 +38,7 @@ function stringifyValue(value: ImportValue): string {
 }
 
 export function mapImportRow(row: ImportRow): Record<string, string> {
-  return Object.entries(row).reduce<Record<string, string>>(
+  const mapped = Object.entries(row).reduce<Record<string, string>>(
     (mapped, [column, value]) => {
       const target = targetColumn(column);
       const stringValue = stringifyValue(value).trim();
@@ -49,6 +50,15 @@ export function mapImportRow(row: ImportRow): Record<string, string> {
     },
     {},
   );
+
+  if (!mapped.name && (mapped.first_name || mapped.last_name)) {
+    mapped.name = [mapped.first_name, mapped.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }
+
+  return mapped;
 }
 
 export function findDuplicatePlates(rows: ImportRow[]): string[] {

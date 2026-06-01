@@ -35,6 +35,43 @@ describe("import column helpers", () => {
     });
   });
 
+  it("maps workbook split names and American car color spelling", () => {
+    expect(
+      mapImportRow({
+        first_name: "James",
+        last_name: "Thornton",
+        car_color: "Red",
+        car_make: "Toyota",
+        car_model: "Camry",
+        plate_number: "abcd 123",
+      }),
+    ).toEqual({
+      first_name: "James",
+      last_name: "Thornton",
+      name: "James Thornton",
+      colour: "Red",
+      make: "Toyota",
+      model: "Camry",
+      plate_number: "ABCD123",
+    });
+  });
+
+  it("keeps an explicit name when split name columns are also present", () => {
+    expect(
+      mapImportRow({
+        name: "Building Override",
+        first_name: "James",
+        last_name: "Thornton",
+        plate_number: "ABCD123",
+      }),
+    ).toEqual({
+      name: "Building Override",
+      first_name: "James",
+      last_name: "Thornton",
+      plate_number: "ABCD123",
+    });
+  });
+
   it("finds duplicate plates after normalization", () => {
     expect(
       findDuplicatePlates([{ plate_number: "ABC 123" }, { plate: "ABC-123" }]),

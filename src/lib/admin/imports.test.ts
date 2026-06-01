@@ -93,4 +93,79 @@ describe("admin vehicle imports", () => {
       }),
     ]);
   });
+
+  it("previews rows shaped like the parking violation workbook", () => {
+    const preview = buildVehicleImportPreview(
+      [
+        {
+          owner_id: 1,
+          first_name: "James",
+          last_name: "Thornton",
+          phone: "416-555-0142",
+          email: "james.thornton@gmail.com",
+          unit: 101,
+          car_color: "Red",
+          car_make: "Toyota",
+          car_model: "Camry",
+          year: 2019,
+          plate_number: "ABCD123",
+        },
+        {
+          owner_id: 2,
+          first_name: "Sofia",
+          last_name: "Reyes",
+          phone: "416-555-0287",
+          email: "sofia.reyes@outlook.com",
+          unit: 102,
+          car_color: "White",
+          car_make: "Honda",
+          car_model: "Civic",
+          year: 2021,
+          plate_number: "XYZW456",
+        },
+      ],
+      [
+        {
+          id: "vehicle-existing",
+          ownerId: "owner-existing",
+          plateNumber: "ABCD123",
+        },
+      ],
+    );
+
+    expect(preview.totalRows).toBe(2);
+    expect(preview.rowsToUpdate).toBe(1);
+    expect(preview.rowsToCreate).toBe(1);
+    expect(preview.invalidRows).toBe(0);
+    expect(preview.errors).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "name",
+          message: "Owner name is required.",
+        }),
+      ]),
+    );
+    expect(preview.validRows).toEqual([
+      expect.objectContaining({
+        mode: "update",
+        name: "James Thornton",
+        unitNumber: "101",
+        plateNumber: "ABCD123",
+        colour: "Red",
+        make: "Toyota",
+        model: "Camry",
+        year: 2019,
+      }),
+      expect.objectContaining({
+        mode: "create",
+        name: "Sofia Reyes",
+        unitNumber: "102",
+        plateNumber: "XYZW456",
+        colour: "White",
+        make: "Honda",
+        model: "Civic",
+        year: 2021,
+      }),
+    ]);
+  });
 });
