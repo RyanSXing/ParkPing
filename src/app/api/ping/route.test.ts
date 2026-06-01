@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "./route";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { sendSimulatedParkingAlert } from "@/lib/notifications/simulated";
+import { sendParkingAlert } from "@/lib/notifications/send";
 
 vi.mock("server-only", () => ({}));
 
@@ -10,8 +10,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseAdminClient: vi.fn(),
 }));
 
-vi.mock("@/lib/notifications/simulated", () => ({
-  sendSimulatedParkingAlert: vi.fn(),
+vi.mock("@/lib/notifications/send", () => ({
+  sendParkingAlert: vi.fn(),
 }));
 
 const createSupabaseMock = ({
@@ -101,11 +101,11 @@ const createSupabaseMock = ({
   };
 
   if (notificationShouldFail) {
-    vi.mocked(sendSimulatedParkingAlert).mockRejectedValue(
+    vi.mocked(sendParkingAlert).mockRejectedValue(
       new Error("Notification insert failed"),
     );
   } else {
-    vi.mocked(sendSimulatedParkingAlert).mockResolvedValue({
+    vi.mocked(sendParkingAlert).mockResolvedValue({
       id: "notification-1",
     } as never);
   }
@@ -157,6 +157,13 @@ describe("POST /api/ping", () => {
     expect(JSON.stringify(body)).not.toContain("+15551234567");
     expect(JSON.stringify(body)).not.toContain("1204");
     expect(body).not.toHaveProperty("owner");
+    expect(sendParkingAlert).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        mode: "simulated",
+        appBaseUrl: "http://localhost:3000",
+      }),
+    );
   });
 
   it("rejects the legacy plate field without plateNumber", async () => {
@@ -228,7 +235,7 @@ describe("POST /api/ping", () => {
         unit_number: "1204",
       },
     });
-    vi.mocked(sendSimulatedParkingAlert).mockRejectedValue(
+    vi.mocked(sendParkingAlert).mockRejectedValue(
       new Error("No usable notification recipient."),
     );
     vi.mocked(createSupabaseAdminClient).mockReturnValue(client as never);
@@ -256,7 +263,7 @@ describe("POST /api/ping", () => {
       success: false,
       message: "Unable to create ping right now. Please try again later.",
     });
-    expect(sendSimulatedParkingAlert).toHaveBeenCalledWith(
+    expect(sendParkingAlert).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         owner: {
@@ -299,7 +306,7 @@ describe("POST /api/ping", () => {
       message: "Unable to create ping right now. Please try again later.",
     });
     expect(incidentUpdateQuery.update).toHaveBeenCalledWith({ status: "failed" });
-    expect(sendSimulatedParkingAlert).not.toHaveBeenCalled();
+    expect(sendParkingAlert).not.toHaveBeenCalled();
   });
 
   it("stores requester hash without raw requester or owner private fields", async () => {

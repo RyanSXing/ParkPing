@@ -2,14 +2,14 @@ import { z } from "zod";
 
 import { env } from "@/lib/env";
 import { createResolveExpiry, createResolveToken } from "@/lib/incidents";
-import { sendSimulatedParkingAlert } from "@/lib/notifications/simulated";
+import { sendParkingAlert } from "@/lib/notifications/send";
 import { evaluatePingLimits, type IncidentLike } from "@/lib/rate-limit";
 import { createRequesterHash, getRequesterSignals } from "@/lib/security/requester";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { messageSchema } from "@/lib/validation/message";
 import { plateSchema } from "@/lib/validation/plate";
 
-type NotificationClient = Parameters<typeof sendSimulatedParkingAlert>[0];
+type NotificationClient = Parameters<typeof sendParkingAlert>[0];
 type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
 
 const NO_MATCH_MESSAGE =
@@ -159,9 +159,10 @@ export async function POST(request: Request) {
     }
 
     try {
-      await sendSimulatedParkingAlert(supabase as unknown as NotificationClient, {
+      await sendParkingAlert(supabase as unknown as NotificationClient, {
         incidentId: incident.id,
         resolveToken,
+        mode: env.NOTIFICATION_MODE,
         owner: {
           phone: owner.phone,
           email: owner.email,
@@ -174,6 +175,8 @@ export async function POST(request: Request) {
         },
         location: parsedRequest.location || null,
         appBaseUrl: env.APP_BASE_URL,
+        resendApiKey: env.RESEND_API_KEY,
+        fromEmail: env.FROM_EMAIL,
       });
     } catch {
       await markIncidentFailed(supabase, incident.id);

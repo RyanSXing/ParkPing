@@ -47,6 +47,14 @@ const envSchema = z.object({
     commaSeparatedEmails,
     z.array(z.email()).default([]),
   ),
+  RESEND_API_KEY: z.preprocess(
+    emptyStringToUndefined,
+    z.string().optional(),
+  ),
+  FROM_EMAIL: z.preprocess(
+    emptyStringToUndefined,
+    z.string().optional(),
+  ),
 });
 
 export const env = envSchema.parse({
@@ -57,6 +65,8 @@ export const env = envSchema.parse({
   APP_BASE_URL: appBaseUrl,
   REQUESTER_HASH_SECRET: process.env.REQUESTER_HASH_SECRET,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  FROM_EMAIL: process.env.FROM_EMAIL,
 });
 
 export function hasSupabaseAdminEnv() {

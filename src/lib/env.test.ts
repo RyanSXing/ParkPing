@@ -27,4 +27,14 @@ describe("env", () => {
 
     expect(env.APP_BASE_URL).toBe("https://parkping-preview.vercel.app");
   });
+
+  it("parses optional email notification settings", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("FROM_EMAIL", "ParkPing <alerts@example.com>");
+
+    const { env } = await loadEnv();
+
+    expect(env.RESEND_API_KEY).toBe("re_test_key");
+    expect(env.FROM_EMAIL).toBe("ParkPing <alerts@example.com>");
+  });
 });
