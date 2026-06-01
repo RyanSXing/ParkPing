@@ -90,6 +90,14 @@ export type AdminVehicle = {
   active: boolean;
 };
 
+export type PaginatedResult<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+};
+
 export type AdminVehicleDetail = {
   id: string;
   ownerId: string;
@@ -127,6 +135,18 @@ export type AdminNotification = {
   resolveLink: string;
   sentAt: string | null;
   createdAt: string;
+};
+
+export type AdminImportHistory = {
+  id: string;
+  filename: string;
+  status: string;
+  totalRows: number;
+  rowsCreated: number;
+  rowsUpdated: number;
+  rowsFailed: number;
+  createdAt: string;
+  confirmedAt: string | null;
 };
 
 function firstOwner(owner: VehicleRecord["owners"]): OwnerRecord | null {
@@ -250,6 +270,22 @@ function uniqueVehiclesById(vehicleGroups: VehicleRecord[][]) {
   return Array.from(vehiclesById.values()).sort((left, right) =>
     left.plate_number.localeCompare(right.plate_number),
   );
+}
+
+function paginateItems<T>(items: T[], page: number, pageSize: number): PaginatedResult<T> {
+  const safePage = Math.max(1, page);
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(safePage, totalPages);
+  const start = (currentPage - 1) * pageSize;
+
+  return {
+    items: items.slice(start, start + pageSize),
+    page: currentPage,
+    pageSize,
+    totalItems,
+    totalPages,
+  };
 }
 
 export async function getAdminSummary(): Promise<AdminSummary> {
@@ -381,6 +417,28 @@ export async function getAdminVehicles(q?: string): Promise<AdminVehicle[]> {
     .map(mapVehicle);
 }
 
+export async function getAdminVehiclesPage({
+  q,
+  active,
+  page = 1,
+  pageSize = 25,
+}: {
+  q?: string;
+  active?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PaginatedResult<AdminVehicle>> {
+  const vehicles = await getAdminVehicles(q);
+  const filteredVehicles =
+    active === "active"
+      ? vehicles.filter((vehicle) => vehicle.active)
+      : active === "inactive"
+        ? vehicles.filter((vehicle) => !vehicle.active)
+        : vehicles;
+
+  return paginateItems(filteredVehicles, page, pageSize);
+}
+
 export async function getAdminVehicleById(
   vehicleId: string,
 ): Promise<AdminVehicleDetail | null> {
@@ -459,6 +517,18 @@ export async function getAdminIncidents({
   return ((data ?? []) as IncidentRecord[]).map(mapIncident);
 }
 
+export async function getAdminIncidentsPage(params: {
+  status?: string;
+  plate?: string;
+  date?: string;
+  location?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PaginatedResult<AdminIncident>> {
+  const incidents = await getAdminIncidents(params);
+  return paginateItems(incidents, params.page ?? 1, params.pageSize ?? 25);
+}
+
 export async function getAdminNotifications(): Promise<AdminNotification[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
@@ -474,4 +544,81 @@ export async function getAdminNotifications(): Promise<AdminNotification[]> {
   }
 
   return ((data ?? []) as NotificationRecord[]).map(mapNotification);
+}
+
+export async function getAdminNotificationsPage({
+  status,
+  method,
+  page = 1,
+  pageSize = 25,
+}: {
+  status?: string;
+  method?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PaginatedResult<AdminNotification>> {
+  const notifications = await getAdminNotifications();
+  const filtered = notifications.filter((notification) => {
+    const statusMatches = status ? notification.status === status : true;
+    const methodMatches = method ? notification.method === method : true;
+    return statusMatches && methodMatches;
+  });
+
+  return paginateItems(filtered, page, pageSize);
+}
+
+export async function archiveDemoIncidents(): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("incidents")
+    .update({
+      status: "cancelled",
+      resolved_at: new Date().toISOString(),
+    })
+    .ilike("location", "%smoke%")
+    .in("status", ["pending", "notified", "failed"])
+    .select("id");
+
+  if (error) {
+    throw new Error("Unable to archive demo incidents.");
+  }
+
+  return (data ?? []).length;
+}
+
+export async function getAdminImports(): Promise<AdminImportHistory[]> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("imports")
+    .select(
+      "id, filename, status, total_rows, rows_created, rows_updated, rows_failed, created_at, confirmed_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    throw new Error("Unable to load import history.");
+  }
+
+  return ((data ?? []) as Array<{
+    id: string;
+    filename: string;
+    status: string;
+    total_rows: number;
+    rows_created: number;
+    rows_updated: number;
+    rows_failed: number;
+    created_at: string;
+    confirmed_at: string | null;
+  }>).map((record) => ({
+    id: record.id,
+    filename: record.filename,
+    status: record.status,
+    totalRows: record.total_rows,
+    rowsCreated: record.rows_created,
+    rowsUpdated: record.rows_updated,
+    rowsFailed: record.rows_failed,
+    createdAt: record.created_at,
+    confirmedAt: record.confirmed_at,
+  }));
 }

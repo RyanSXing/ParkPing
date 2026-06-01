@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/admin/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,8 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@/components/ui/table";
-import { getAdminIncidents, requireAdminUser } from "@/lib/admin/queries";
+import { getAdminIncidentsPage, requireAdminUser } from "@/lib/admin/queries";
+import { archiveDemoIncidentsAction } from "./actions";
 
 type IncidentsPageProps = {
   searchParams?: Promise<{
@@ -18,6 +20,7 @@ type IncidentsPageProps = {
     plate?: string;
     date?: string;
     location?: string;
+    page?: string;
   }>;
 };
 
@@ -49,15 +52,46 @@ export default async function AdminIncidentsPage({ searchParams }: IncidentsPage
   const plate = params?.plate?.trim() ?? "";
   const date = params?.date?.trim() ?? "";
   const location = params?.location?.trim() ?? "";
-  const incidents = await getAdminIncidents({ status, plate, date, location });
+  const page = Number(params?.page ?? "1");
+  const incidentsPage = await getAdminIncidentsPage({
+    status,
+    plate,
+    date,
+    location,
+    page,
+  });
+  const incidents = incidentsPage.items;
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-950">Incidents</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Filter resident pings by status, date, plate, or location.
-        </p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-950">Incidents</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Filter resident pings by status, date, plate, or location.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <a
+            href={`/admin/incidents/export?${new URLSearchParams({
+              status,
+              plate,
+              date,
+              location,
+            }).toString()}`}
+            className="inline-flex min-h-10 items-center justify-center rounded-md border border-[#E4ECFC] bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Export CSV
+          </a>
+          <form action={archiveDemoIncidentsAction}>
+            <button
+              type="submit"
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
+            >
+              Archive demo pings
+            </button>
+          </form>
+        </div>
       </div>
 
       <form className="grid gap-2 rounded-lg border border-[#E4ECFC] bg-white p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_160px_180px_auto]">
@@ -162,6 +196,11 @@ export default async function AdminIncidentsPage({ searchParams }: IncidentsPage
           message="Adjust the status or plate filters to broaden the result set."
         />
       )}
+      <Pagination
+        pageInfo={incidentsPage}
+        basePath="/admin/incidents"
+        params={{ status, plate, date, location }}
+      />
     </div>
   );
 }
