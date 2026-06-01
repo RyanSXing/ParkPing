@@ -26,16 +26,21 @@ function createResolveClient({
     resolve_token_expires_at: "2026-06-02T12:00:00.000Z",
   },
   lookupError = null,
+  updateData = { id: "incident-1" },
   updateError = null,
 }: {
   incident?: IncidentRow | null;
   lookupError?: { message: string } | null;
+  updateData?: { id: string } | null;
   updateError?: { message: string } | null;
 } = {}) {
-  const updatePayloads: unknown[] = [];
+  const updateCalls: Array<{
+    payload: unknown;
+    filters: Array<{ column: string; value: unknown }>;
+  }> = [];
 
   return {
-    updatePayloads,
+    updateCalls,
     from(table: string) {
       if (table !== "incidents") {
         throw new Error(`Unexpected table ${table}`);
@@ -58,14 +63,37 @@ function createResolveClient({
           };
         },
         update(payload: unknown) {
-          updatePayloads.push(payload);
+          const updateCall = {
+            payload,
+            filters: [] as Array<{ column: string; value: unknown }>,
+          };
+          updateCalls.push(updateCall);
 
           return {
-            eq: async (column: string, value: string) => {
-              expect(column).toBe("id");
-              expect(value).toBe("incident-1");
+            eq(column: string, value: string) {
+              updateCall.filters.push({ column, value });
 
-              return { error: updateError };
+              return {
+                in(filterColumn: string, filterValue: string[]) {
+                  updateCall.filters.push({
+                    column: filterColumn,
+                    value: filterValue,
+                  });
+
+                  return {
+                    select(selection: string) {
+                      expect(selection).toBe("id");
+
+                      return {
+                        maybeSingle: async () => ({
+                          data: updateData,
+                          error: updateError,
+                        }),
+                      };
+                    },
+                  };
+                },
+              };
             },
           };
         },
@@ -108,10 +136,16 @@ describe("POST /api/resolve", () => {
       message: "Thanks. This parking alert has been marked resolved.",
     });
     expect(response.status).toBe(200);
-    expect(client.updatePayloads).toEqual([
+    expect(client.updateCalls).toEqual([
       {
-        status: "resolved",
-        resolved_at: "2026-06-01T12:00:00.000Z",
+        payload: {
+          status: "resolved",
+          resolved_at: "2026-06-01T12:00:00.000Z",
+        },
+        filters: [
+          { column: "id", value: "incident-1" },
+          { column: "status", value: ["pending", "notified"] },
+        ],
       },
     ]);
   });
@@ -138,7 +172,7 @@ describe("POST /api/resolve", () => {
       message: "This resolve link is invalid or expired.",
     });
     expect(response.status).toBe(404);
-    expect(client.updatePayloads).toEqual([]);
+    expect(client.updateCalls).toEqual([]);
   });
 
   it("returns invalid or expired when the token is expired", async () => {
@@ -161,7 +195,7 @@ describe("POST /api/resolve", () => {
       message: "This resolve link is invalid or expired.",
     });
     expect(response.status).toBe(404);
-    expect(client.updatePayloads).toEqual([]);
+    expect(client.updateCalls).toEqual([]);
   });
 
   it("returns success idempotently without updating an already resolved incident", async () => {
@@ -181,7 +215,7 @@ describe("POST /api/resolve", () => {
       message: "Thanks. This parking alert has been marked resolved.",
     });
     expect(response.status).toBe(200);
-    expect(client.updatePayloads).toEqual([]);
+    expect(client.updateCalls).toEqual([]);
   });
 
   it.each(["cancelled", "failed", "rate_limited"] as const)(
@@ -203,9 +237,25 @@ describe("POST /api/resolve", () => {
         message: "This resolve link is invalid or expired.",
       });
       expect(response.status).toBe(404);
-      expect(client.updatePayloads).toEqual([]);
+      expect(client.updateCalls).toEqual([]);
     },
   );
+
+  it("returns invalid or expired when the constrained update matches no row", async () => {
+    const client = createResolveClient({
+      updateData: null,
+    });
+    vi.mocked(createSupabaseAdminClient).mockReturnValue(client as never);
+
+    const response = await postResolve({ token: "valid-resolve-token-123" });
+
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      message: "This resolve link is invalid or expired.",
+    });
+    expect(response.status).toBe(404);
+    expect(client.updateCalls).toHaveLength(1);
+  });
 
   it("returns a generic error when the status update fails", async () => {
     const client = createResolveClient({
@@ -220,6 +270,6 @@ describe("POST /api/resolve", () => {
       message: "Unable to resolve this parking alert right now.",
     });
     expect(response.status).toBe(500);
-    expect(client.updatePayloads).toHaveLength(1);
+    expect(client.updateCalls).toHaveLength(1);
   });
 });

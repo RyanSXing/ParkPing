@@ -76,16 +76,23 @@ export async function POST(request: Request) {
   }
 
   const resolvedAt = new Date().toISOString();
-  const { error: updateError } = await supabase
+  const { data: updatedIncident, error: updateError } = await supabase
     .from("incidents")
     .update({
       status: "resolved",
       resolved_at: resolvedAt,
     })
-    .eq("id", incident.id);
+    .eq("id", incident.id)
+    .in("status", ["pending", "notified"])
+    .select("id")
+    .maybeSingle();
 
   if (updateError) {
     return NextResponse.json(genericErrorResponse, { status: 500 });
+  }
+
+  if (!updatedIncident) {
+    return NextResponse.json(expiredLinkResponse, { status: 404 });
   }
 
   return NextResponse.json(successResponse);
