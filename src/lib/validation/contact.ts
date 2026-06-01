@@ -4,6 +4,12 @@ function trimContactValue(value: ContactValue): string {
   return value?.trim() ?? "";
 }
 
+function hasValidNorthAmericanPhoneShape(digits: string): boolean {
+  return (
+    digits.length === 10 || (digits.length === 11 && digits.startsWith("1"))
+  );
+}
+
 export function normalizeNorthAmericanPhone(value: ContactValue): string {
   const trimmed = trimContactValue(value);
 
@@ -31,7 +37,7 @@ export function maskPhone(value: ContactValue): string {
 
   const digits = value.replace(/\D/g, "");
 
-  if (digits.length < 10) {
+  if (!hasValidNorthAmericanPhoneShape(digits)) {
     return "";
   }
 

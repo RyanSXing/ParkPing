@@ -40,4 +40,9 @@ describe("contact validation helpers", () => {
     expect(maskPhone("abc123")).toBe("");
     expect(maskPhone("555-0123 ext 9")).toBe("");
   });
+
+  it("fails closed for long phone numbers that are not valid NANP shape", () => {
+    expect(maskPhone("24165550123")).toBe("");
+    expect(maskPhone("123456789012")).toBe("");
+  });
 });
