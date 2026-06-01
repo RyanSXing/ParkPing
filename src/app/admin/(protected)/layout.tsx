@@ -1,6 +1,8 @@
 import { AdminNav } from "@/components/admin/admin-nav";
 import { requireAdminUser } from "@/lib/admin/queries";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: Readonly<{

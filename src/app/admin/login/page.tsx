@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
 import { isAdminEmail } from "@/lib/admin/auth";
+import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LoginForm } from "./login-form";
 
@@ -13,10 +14,18 @@ type AdminLoginPageProps = {
 
 export default async function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
   const params = await searchParams;
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const hasSupabasePublicEnv = Boolean(
+    env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  let user: { email?: string | null } | null = null;
+
+  if (hasSupabasePublicEnv) {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+    user = currentUser;
+  }
 
   if (isAdminEmail(user?.email)) {
     redirect("/admin");
