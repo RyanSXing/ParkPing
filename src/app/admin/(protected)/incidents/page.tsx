@@ -57,14 +57,22 @@ export default async function AdminIncidentsPage({ searchParams }: IncidentsPage
       </div>
 
       <form className="grid gap-2 rounded-lg border border-[#E4ECFC] bg-white p-3 sm:grid-cols-[1fr_180px_auto]">
+        <label htmlFor="incident-plate" className="sr-only">
+          Filter incidents by plate
+        </label>
         <Input
+          id="incident-plate"
           type="search"
           name="plate"
           defaultValue={plate}
           placeholder="Plate"
           className="min-h-10"
         />
+        <label htmlFor="incident-status" className="sr-only">
+          Filter incidents by status
+        </label>
         <select
+          id="incident-status"
           name="status"
           defaultValue={status}
           className="min-h-10 rounded-md border border-[#E4ECFC] bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/15"

@@ -3,6 +3,17 @@ import { z } from "zod";
 const emptyStringToUndefined = (value: unknown) =>
   value === "" ? undefined : value;
 
+const commaSeparatedEmails = (value: unknown) => {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+};
+
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.preprocess(
     emptyStringToUndefined,
@@ -28,6 +39,10 @@ const envSchema = z.object({
     emptyStringToUndefined,
     z.string().min(1).default("parkping-dev-secret"),
   ),
+  ADMIN_EMAILS: z.preprocess(
+    commaSeparatedEmails,
+    z.array(z.email()).default([]),
+  ),
 });
 
 export const env = envSchema.parse({
@@ -37,6 +52,7 @@ export const env = envSchema.parse({
   NOTIFICATION_MODE: process.env.NOTIFICATION_MODE,
   APP_BASE_URL: process.env.APP_BASE_URL,
   REQUESTER_HASH_SECRET: process.env.REQUESTER_HASH_SECRET,
+  ADMIN_EMAILS: process.env.ADMIN_EMAILS,
 });
 
 export function hasSupabaseAdminEnv() {

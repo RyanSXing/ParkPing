@@ -1,10 +1,10 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
-
-import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import type { IncidentStatus } from "@/lib/supabase/types";
 import { maskEmail, maskPhone } from "@/lib/validation/contact";
+
+export { requireAdminUser } from "@/lib/admin/auth";
 
 const OPEN_INCIDENT_STATUSES: IncidentStatus[] = ["pending", "notified"];
 const INCIDENT_STATUSES = new Set<IncidentStatus>([
@@ -157,19 +157,6 @@ function mapNotification(notification: NotificationRecord): AdminNotification {
     sentAt: notification.sent_at,
     createdAt: notification.created_at,
   };
-}
-
-export async function requireAdminUser() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/admin/login");
-  }
-
-  return user;
 }
 
 export async function getAdminSummary(): Promise<AdminSummary> {

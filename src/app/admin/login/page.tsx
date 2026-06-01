@@ -1,18 +1,28 @@
 import { redirect } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
+import { isAdminEmail } from "@/lib/admin/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LoginForm } from "./login-form";
 
-export default async function AdminLoginPage() {
+type AdminLoginPageProps = {
+  searchParams?: Promise<{
+    unauthorized?: string;
+  }>;
+};
+
+export default async function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
+  if (isAdminEmail(user?.email)) {
     redirect("/admin");
   }
+
+  const showUnauthorized = Boolean(user) || params?.unauthorized === "1";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#F0F9FF] px-4 py-10 text-slate-950">
@@ -26,6 +36,11 @@ export default async function AdminLoginPage() {
           </h1>
         </div>
         <Card>
+          {showUnauthorized ? (
+            <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+              This account is not authorized for ParkPing admin.
+            </p>
+          ) : null}
           <LoginForm />
         </Card>
       </section>

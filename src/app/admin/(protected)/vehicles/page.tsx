@@ -34,7 +34,11 @@ export default async function AdminVehiclesPage({ searchParams }: VehiclesPagePr
           </p>
         </div>
         <form className="flex w-full gap-2 lg:max-w-md">
+          <label htmlFor="vehicle-search" className="sr-only">
+            Search vehicles by plate, make, model, or colour
+          </label>
           <Input
+            id="vehicle-search"
             type="search"
             name="q"
             defaultValue={q}
