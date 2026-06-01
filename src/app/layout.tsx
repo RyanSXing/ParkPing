@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ParkPing",
-  description: "Resident-first parking coordination for multifamily buildings.",
+  description: "Anonymous parking notifications for shared garages.",
 };
 
 export default function RootLayout({
