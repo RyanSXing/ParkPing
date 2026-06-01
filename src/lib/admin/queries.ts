@@ -90,6 +90,21 @@ export type AdminVehicle = {
   active: boolean;
 };
 
+export type AdminVehicleDetail = {
+  id: string;
+  ownerId: string;
+  plateNumber: string;
+  colour: string;
+  make: string;
+  model: string;
+  year: string;
+  active: boolean;
+  ownerName: string;
+  unitNumber: string;
+  phone: string;
+  email: string;
+};
+
 export type AdminIncident = {
   id: string;
   plateNumber: string;
@@ -171,6 +186,25 @@ function mapVehicle(vehicle: VehicleRecord): AdminVehicle {
     phone: maskPhone(owner?.phone),
     email: maskEmail(owner?.email),
     active: vehicle.active,
+  };
+}
+
+function mapVehicleDetail(vehicle: VehicleRecord): AdminVehicleDetail {
+  const owner = firstOwner(vehicle.owners);
+
+  return {
+    id: vehicle.id,
+    ownerId: vehicle.owner_id,
+    plateNumber: vehicle.plate_number,
+    colour: vehicle.colour ?? "",
+    make: vehicle.make ?? "",
+    model: vehicle.model ?? "",
+    year: vehicle.year ? String(vehicle.year) : "",
+    active: vehicle.active,
+    ownerName: owner?.name ?? "",
+    unitNumber: owner?.unit_number ?? "",
+    phone: owner?.phone ?? "",
+    email: owner?.email ?? "",
   };
 }
 
@@ -345,6 +379,29 @@ export async function getAdminVehicles(q?: string): Promise<AdminVehicle[]> {
   ])
     .slice(0, 100)
     .map(mapVehicle);
+}
+
+export async function getAdminVehicleById(
+  vehicleId: string,
+): Promise<AdminVehicleDetail | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("vehicles")
+    .select(
+      "id, owner_id, plate_number, colour, make, model, year, active, owners(id, name, phone, email, unit_number)",
+    )
+    .eq("id", vehicleId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Unable to load vehicle.");
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapVehicleDetail(data as VehicleRecord);
 }
 
 export async function getAdminIncidents({
