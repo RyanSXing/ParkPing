@@ -30,4 +30,14 @@ describe("contact validation helpers", () => {
     expect(maskPhone(null)).toBe("");
     expect(maskPhone(undefined)).toBe("");
   });
+
+  it("fails closed for malformed or short phone inputs", () => {
+    expect(normalizeNorthAmericanPhone("1234")).toBe("");
+    expect(normalizeNorthAmericanPhone("abc123")).toBe("");
+    expect(normalizeNorthAmericanPhone("555-0123 ext 9")).toBe("");
+
+    expect(maskPhone("1234")).toBe("");
+    expect(maskPhone("abc123")).toBe("");
+    expect(maskPhone("555-0123 ext 9")).toBe("");
+  });
 });

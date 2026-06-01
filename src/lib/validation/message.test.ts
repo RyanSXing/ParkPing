@@ -16,4 +16,12 @@ describe("message validation", () => {
   it("rejects messages longer than 200 characters", () => {
     expect(() => messageSchema.parse("a".repeat(201))).toThrow();
   });
+
+  it("rejects raw messages longer than 200 characters before sanitizing", () => {
+    const rawLongMessage = `<span>${"a".repeat(190)}</span>`;
+
+    expect(rawLongMessage).toHaveLength(203);
+    expect(sanitizeMessage(rawLongMessage)).toHaveLength(190);
+    expect(() => messageSchema.parse(rawLongMessage)).toThrow();
+  });
 });

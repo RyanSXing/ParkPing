@@ -10,6 +10,7 @@ export function sanitizeMessage(value: string): string {
 export const messageSchema = z
   .string()
   .optional()
+  .refine((value) => !value || value.length <= 200)
   .transform((value) => sanitizeMessage(value ?? ""))
   .pipe(z.string().max(200))
   .refine(

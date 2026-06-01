@@ -21,7 +21,7 @@ export function normalizeNorthAmericanPhone(value: ContactValue): string {
     return `+${digits}`;
   }
 
-  return trimmed;
+  return "";
 }
 
 export function maskPhone(value: ContactValue): string {
@@ -31,7 +31,7 @@ export function maskPhone(value: ContactValue): string {
 
   const digits = value.replace(/\D/g, "");
 
-  if (!digits) {
+  if (digits.length < 10) {
     return "";
   }
 
