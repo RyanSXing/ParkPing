@@ -103,7 +103,8 @@ export function PingForm() {
           htmlFor="location"
           className="block text-sm font-semibold text-slate-900"
         >
-          Garage location
+          Garage location{" "}
+          <span className="font-normal text-slate-500">(optional)</span>
         </label>
         <Input
           id="location"
@@ -115,6 +116,10 @@ export function PingForm() {
           maxLength={120}
           className="mt-2"
         />
+        <p className="mt-2 text-xs leading-5 text-slate-500">
+          Do not include your name, unit, phone, or email in the location or
+          message.
+        </p>
       </div>
 
       <div>
@@ -123,7 +128,7 @@ export function PingForm() {
             htmlFor="message"
             className="block text-sm font-semibold text-slate-900"
           >
-            Message
+            Message <span className="font-normal text-slate-500">(optional)</span>
           </label>
           <span className="text-xs text-slate-500" aria-live="polite">
             {message.length}/{MESSAGE_LIMIT}
