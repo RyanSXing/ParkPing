@@ -41,7 +41,7 @@ function isWithinWindow(createdAt: string, now: Date, windowMs: number): boolean
   }
 
   const elapsed = now.getTime() - createdTime;
-  return elapsed >= 0 && elapsed < windowMs;
+  return elapsed >= 0 && elapsed <= windowMs;
 }
 
 export function evaluatePingLimits({

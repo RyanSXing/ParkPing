@@ -38,7 +38,7 @@ export type SendSimulatedParkingAlertInput = {
 };
 
 function createResolveLink(appBaseUrl: string, resolveToken: string): string {
-  return `${appBaseUrl.replace(/\/+$/, "")}/resolve/${resolveToken}`;
+  return `${appBaseUrl.replace(/\/+$/, "")}/resolve/${encodeURIComponent(resolveToken)}`;
 }
 
 function describeVehicle(vehicle: AlertVehicle): string {

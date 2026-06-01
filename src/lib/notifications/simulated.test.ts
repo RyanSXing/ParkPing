@@ -105,6 +105,31 @@ describe("sendSimulatedParkingAlert", () => {
     );
   });
 
+  it("URL-encodes the resolve token in the resolve link", async () => {
+    const client = createInsertClient();
+
+    const notification = await sendSimulatedParkingAlert(client, {
+      incidentId: "incident-token",
+      resolveToken: "token with/slashes?",
+      owner: {
+        phone: "+14165550123",
+        email: null,
+      },
+      vehicle: {
+        plate_number: "ENC123",
+        colour: null,
+        make: null,
+        model: null,
+      },
+      location: null,
+      appBaseUrl: "https://parkping.example",
+    });
+
+    expect(notification.resolve_link).toBe(
+      "https://parkping.example/resolve/token%20with%2Fslashes%3F",
+    );
+  });
+
   it("throws when the insert fails or returns no data", async () => {
     const errorClient = {
       from() {
@@ -140,5 +165,42 @@ describe("sendSimulatedParkingAlert", () => {
         appBaseUrl: "https://parkping.example",
       }),
     ).rejects.toThrow("database unavailable");
+  });
+
+  it("throws when the insert returns no data and no error", async () => {
+    const noDataClient = {
+      from() {
+        return {
+          insert() {
+            return {
+              select() {
+                return {
+                  single: async () => ({
+                    data: null,
+                    error: null,
+                  }),
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+
+    await expect(
+      sendSimulatedParkingAlert(noDataClient, {
+        incidentId: "incident-no-data",
+        resolveToken: "resolve-token-789",
+        owner: { phone: null, email: null },
+        vehicle: {
+          plate_number: "NODATA",
+          colour: null,
+          make: null,
+          model: null,
+        },
+        location: null,
+        appBaseUrl: "https://parkping.example",
+      }),
+    ).rejects.toThrow("Notification insert returned no data");
   });
 });
