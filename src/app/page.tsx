@@ -24,8 +24,9 @@ export default function Home() {
             Enter the blocking car&apos;s plate. We notify the owner privately.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-700 sm:text-lg">
-            ParkPing helps residents report a blocked space without sharing
-            names, phone numbers, emails, or unit details with another resident.
+            ParkPing helps residents in shared garages send a private system
+            alert without revealing names, phone numbers, emails, or unit
+            numbers.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
