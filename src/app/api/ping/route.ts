@@ -10,6 +10,7 @@ import { messageSchema } from "@/lib/validation/message";
 import { plateSchema } from "@/lib/validation/plate";
 
 type NotificationClient = Parameters<typeof sendSimulatedParkingAlert>[0];
+type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
 
 const NO_MATCH_MESSAGE =
   "No matching vehicle found. Please check the plate number or contact building management.";
@@ -21,14 +22,23 @@ const VALIDATION_MESSAGE = "Please check the ping details and try again.";
 const SERVER_ERROR_MESSAGE = "Unable to create ping right now. Please try again later.";
 
 const pingRequestSchema = z.object({
-  plate: plateSchema,
+  plateNumber: plateSchema.optional(),
+  plate: plateSchema.optional(),
   location: z
     .string()
     .max(120)
     .optional()
     .transform((value) => value?.trim() ?? ""),
   message: messageSchema,
-});
+})
+  .refine((value) => Boolean(value.plateNumber || value.plate), {
+    path: ["plateNumber"],
+  })
+  .transform(({ plateNumber, plate, location, message }) => ({
+    plateNumber: plateNumber ?? plate ?? "",
+    location,
+    message,
+  }));
 
 type OwnerRecord = {
   id?: string;
@@ -64,6 +74,13 @@ async function parsePingRequest(request: Request) {
   return pingRequestSchema.parse(body);
 }
 
+async function markIncidentFailed(
+  supabase: SupabaseAdminClient,
+  incidentId: string,
+) {
+  await supabase.from("incidents").update({ status: "failed" }).eq("id", incidentId);
+}
+
 export async function POST(request: Request) {
   let parsedRequest: z.infer<typeof pingRequestSchema>;
 
@@ -87,7 +104,7 @@ export async function POST(request: Request) {
       .select(
         "id, plate_number, colour, make, model, owners(id, name, phone, email, unit_number)",
       )
-      .eq("plate_number", parsedRequest.plate)
+      .eq("plate_number", parsedRequest.plateNumber)
       .eq("active", true)
       .maybeSingle();
 
@@ -104,7 +121,7 @@ export async function POST(request: Request) {
       .from("incidents")
       .select("created_at, status, plate_number_snapshot, requester_hash")
       .or(
-        `plate_number_snapshot.eq.${parsedRequest.plate},requester_hash.eq.${requesterHash}`,
+        `plate_number_snapshot.eq.${parsedRequest.plateNumber},requester_hash.eq.${requesterHash}`,
       )
       .gte("created_at", recentSince);
 
@@ -113,7 +130,7 @@ export async function POST(request: Request) {
     }
 
     const limitResult = evaluatePingLimits({
-      plateNumber: parsedRequest.plate,
+      plateNumber: parsedRequest.plateNumber,
       requesterHash,
       incidents: (recentIncidents ?? []) as IncidentLike[],
     });
@@ -127,7 +144,7 @@ export async function POST(request: Request) {
       .from("incidents")
       .insert({
         vehicle_id: (vehicle as VehicleRecord).id,
-        plate_number_snapshot: parsedRequest.plate,
+        plate_number_snapshot: parsedRequest.plateNumber,
         location: parsedRequest.location || null,
         message: parsedRequest.message || null,
         status: "pending",
@@ -149,22 +166,27 @@ export async function POST(request: Request) {
       return jsonResponse({ success: false, message: SERVER_ERROR_MESSAGE }, 500);
     }
 
-    await sendSimulatedParkingAlert(supabase as unknown as NotificationClient, {
-      incidentId: incident.id,
-      resolveToken,
-      owner: {
-        phone: owner.phone,
-        email: owner.email,
-      },
-      vehicle: {
-        plate_number: vehicleRecord.plate_number,
-        colour: vehicleRecord.colour,
-        make: vehicleRecord.make,
-        model: vehicleRecord.model,
-      },
-      location: parsedRequest.location || null,
-      appBaseUrl: env.APP_BASE_URL,
-    });
+    try {
+      await sendSimulatedParkingAlert(supabase as unknown as NotificationClient, {
+        incidentId: incident.id,
+        resolveToken,
+        owner: {
+          phone: owner.phone,
+          email: owner.email,
+        },
+        vehicle: {
+          plate_number: vehicleRecord.plate_number,
+          colour: vehicleRecord.colour,
+          make: vehicleRecord.make,
+          model: vehicleRecord.model,
+        },
+        location: parsedRequest.location || null,
+        appBaseUrl: env.APP_BASE_URL,
+      });
+    } catch {
+      await markIncidentFailed(supabase, incident.id);
+      return jsonResponse({ success: false, message: SERVER_ERROR_MESSAGE }, 500);
+    }
 
     const { error: updateError } = await supabase
       .from("incidents")
@@ -172,6 +194,7 @@ export async function POST(request: Request) {
       .eq("id", incident.id);
 
     if (updateError) {
+      await markIncidentFailed(supabase, incident.id);
       return jsonResponse({ success: false, message: SERVER_ERROR_MESSAGE }, 500);
     }
 
