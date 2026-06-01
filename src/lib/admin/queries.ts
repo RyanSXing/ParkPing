@@ -17,6 +17,7 @@ const INCIDENT_STATUSES = new Set<IncidentStatus>([
 ]);
 
 type OwnerRecord = {
+  id?: string;
   name: string | null;
   phone: string | null;
   email: string | null;
@@ -25,6 +26,7 @@ type OwnerRecord = {
 
 type VehicleRecord = {
   id: string;
+  owner_id: string;
   plate_number: string;
   colour: string | null;
   make: string | null;
@@ -139,23 +141,6 @@ function vehicleLabel(vehicle: {
     .join(" ");
 }
 
-function textIncludes(value: string | null | undefined, searchTerm: string) {
-  return (value ?? "").toLowerCase().includes(searchTerm);
-}
-
-function vehicleMatchesSearch(vehicle: VehicleRecord, searchTerm: string) {
-  const owner = firstOwner(vehicle.owners);
-
-  return (
-    textIncludes(vehicle.plate_number, searchTerm) ||
-    textIncludes(vehicle.make, searchTerm) ||
-    textIncludes(vehicle.model, searchTerm) ||
-    textIncludes(vehicle.colour, searchTerm) ||
-    textIncludes(owner?.name, searchTerm) ||
-    textIncludes(owner?.unit_number, searchTerm)
-  );
-}
-
 function firstIncidentVehicle(
   vehicle: IncidentRecord["vehicles"],
 ): IncidentVehicleRecord | null {
@@ -217,6 +202,20 @@ function mapNotification(notification: NotificationRecord): AdminNotification {
     sentAt: notification.sent_at,
     createdAt: notification.created_at,
   };
+}
+
+function uniqueVehiclesById(vehicleGroups: VehicleRecord[][]) {
+  const vehiclesById = new Map<string, VehicleRecord>();
+
+  for (const vehicles of vehicleGroups) {
+    for (const vehicle of vehicles) {
+      vehiclesById.set(vehicle.id, vehicle);
+    }
+  }
+
+  return Array.from(vehiclesById.values()).sort((left, right) =>
+    left.plate_number.localeCompare(right.plate_number),
+  );
 }
 
 export async function getAdminSummary(): Promise<AdminSummary> {
@@ -285,21 +284,65 @@ export async function getRecentIncidents(limit = 8): Promise<AdminIncident[]> {
 
 export async function getAdminVehicles(q?: string): Promise<AdminVehicle[]> {
   const supabase = createSupabaseAdminClient();
-  const searchTerm = escapeSearchTerm(q ?? "").toLowerCase();
-  const { data, error } = await supabase
-    .from("vehicles")
-    .select(
-      "id, plate_number, colour, make, model, year, active, owners(name, phone, email, unit_number)",
-    )
-    .order("plate_number", { ascending: true })
-    .limit(250);
+  const searchTerm = escapeSearchTerm(q ?? "");
+  const vehicleSelect =
+    "id, owner_id, plate_number, colour, make, model, year, active, owners(id, name, phone, email, unit_number)";
 
-  if (error) {
+  if (!searchTerm) {
+    const { data, error } = await supabase
+      .from("vehicles")
+      .select(vehicleSelect)
+      .order("plate_number", { ascending: true })
+      .limit(100);
+
+    if (error) {
+      throw new Error("Unable to load vehicles.");
+    }
+
+    return ((data ?? []) as VehicleRecord[]).map(mapVehicle);
+  }
+
+  const pattern = `%${searchTerm}%`;
+  const [vehicleFieldResult, ownerResult] = await Promise.all([
+    supabase
+      .from("vehicles")
+      .select(vehicleSelect)
+      .or(
+        `plate_number.ilike.${pattern},make.ilike.${pattern},model.ilike.${pattern},colour.ilike.${pattern}`,
+      )
+      .order("plate_number", { ascending: true })
+      .limit(100),
+    supabase
+      .from("owners")
+      .select("id")
+      .or(`name.ilike.${pattern},unit_number.ilike.${pattern}`)
+      .limit(100),
+  ]);
+
+  if (vehicleFieldResult.error || ownerResult.error) {
     throw new Error("Unable to load vehicles.");
   }
 
-  return ((data ?? []) as VehicleRecord[])
-    .filter((vehicle) => !searchTerm || vehicleMatchesSearch(vehicle, searchTerm))
+  const ownerIds = ((ownerResult.data ?? []) as Array<{ id: string }>).map(
+    (owner) => owner.id,
+  );
+  const ownerVehicleResult = ownerIds.length
+    ? await supabase
+        .from("vehicles")
+        .select(vehicleSelect)
+        .in("owner_id", ownerIds)
+        .order("plate_number", { ascending: true })
+        .limit(100)
+    : { data: [], error: null };
+
+  if (ownerVehicleResult.error) {
+    throw new Error("Unable to load vehicles.");
+  }
+
+  return uniqueVehiclesById([
+    (vehicleFieldResult.data ?? []) as VehicleRecord[],
+    (ownerVehicleResult.data ?? []) as VehicleRecord[],
+  ])
     .slice(0, 100)
     .map(mapVehicle);
 }
